@@ -57,7 +57,9 @@ public class NamesrvStartup {
 
     public static NamesrvController main0(String[] args) {
         try {
+            // 负责把相关文件配置参数注入到对应的实体对象中
             parseCommandlineAndConfigFile(args);
+            // 创建协调各个模块功能的控制器，并启动服务
             NamesrvController controller = createAndStartNamesrvController();
             return controller;
         } catch (Throwable e) {
@@ -95,8 +97,10 @@ public class NamesrvStartup {
         nettyClientConfig = new NettyClientConfig();
         nettyServerConfig.setListenPort(9876);
         if (commandLine.hasOption('c')) {
+            // 获取配置文件路路径
             String file = commandLine.getOptionValue('c');
             if (file != null) {
+                // 把相关配置注入对应的实体对象
                 InputStream in = new BufferedInputStream(Files.newInputStream(Paths.get(file)));
                 properties = new Properties();
                 properties.load(in);
@@ -115,6 +119,7 @@ public class NamesrvStartup {
         }
 
         MixAll.properties2Object(ServerUtil.commandLine2Properties(commandLine), namesrvConfig);
+        // 打印日志相关配置
         if (commandLine.hasOption('p')) {
             MixAll.printObjectProperties(logConsole, namesrvConfig);
             MixAll.printObjectProperties(logConsole, nettyServerConfig);

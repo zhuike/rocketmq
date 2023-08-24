@@ -101,12 +101,19 @@ public class NamesrvController {
     }
 
     public boolean initialize() {
+        // 加载配置
         loadConfig();
+        // 初始化remotingServer remotingClient
         initiateNetworkComponents();
+        // 初始化线程池
         initiateThreadExecutors();
+        // 注册处理器
         registerProcessor();
+        // 开始扫描不活跃broker，打印KV配置信息，水印信息相关定时器
         startScheduleService();
+        // 如果没有禁用tls，会初始化相关的ssl上下文
         initiateSslContext();
+        // 注册rpc回调钩子
         initiateRpcHooks();
         return true;
     }

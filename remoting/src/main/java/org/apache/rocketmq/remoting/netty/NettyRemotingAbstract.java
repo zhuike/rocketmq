@@ -300,8 +300,10 @@ public abstract class NettyRemotingAbstract {
             RemotingCommand response;
 
             try {
+                // 获取远程rpc地址
                 String remoteAddr = RemotingHelper.parseChannelRemoteAddr(ctx.channel());
                 try {
+                    // 遍历执行rpc指令前置事件
                     doBeforeRpcHooks(remoteAddr, cmd);
                 } catch (AbortProcessException e) {
                     throw e;
@@ -310,12 +312,14 @@ public abstract class NettyRemotingAbstract {
                 }
 
                 if (exception == null) {
+                    // 执行真正的处理时间
                     response = pair.getObject1().processRequest(ctx, cmd);
                 } else {
                     response = RemotingCommand.createResponseCommand(RemotingSysResponseCode.SYSTEM_ERROR, null);
                 }
 
                 try {
+                    // 遍历执行rpc指令后置事件
                     doAfterRpcHooks(remoteAddr, cmd, response);
                 } catch (AbortProcessException e) {
                     throw e;
@@ -326,7 +330,7 @@ public abstract class NettyRemotingAbstract {
                 if (exception != null) {
                     throw exception;
                 }
-
+                // 结果返回
                 writeResponse(ctx.channel(), cmd, response);
             } catch (AbortProcessException e) {
                 response = RemotingCommand.createResponseCommand(e.getResponseCode(), e.getErrorMessage());

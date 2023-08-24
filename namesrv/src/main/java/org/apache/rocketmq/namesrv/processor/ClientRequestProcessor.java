@@ -63,6 +63,7 @@ public class ClientRequestProcessor implements NettyRequestProcessor {
 
         boolean namesrvReady = needCheckNamesrvReady.get() && System.currentTimeMillis() - startupTimeMillis >= TimeUnit.SECONDS.toMillis(namesrvController.getNamesrvConfig().getWaitSecondsForService());
 
+        // 超时或者服务没有准备好
         if (namesrvController.getNamesrvConfig().isNeedWaitForService() && !namesrvReady) {
             log.warn("name server not ready. request code {} ", request.getCode());
             response.setCode(ResponseCode.SYSTEM_ERROR);

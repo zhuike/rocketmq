@@ -665,13 +665,15 @@ public class RouteInfoManager {
 
         try {
             this.lock.readLock().lockInterruptibly();
+            // 根据主题获取队列信息
             Map<String, QueueData> queueDataMap = this.topicQueueTable.get(topic);
             if (queueDataMap != null) {
                 topicRouteData.setQueueDatas(new ArrayList<>(queueDataMap.values()));
                 foundQueueData = true;
-
+                // 获取队列的所在broker列表
                 Set<String> brokerNameSet = new HashSet<>(queueDataMap.keySet());
 
+                // 如果设置了过滤服务地址表 filterServerTable，则根据 broker 信息获取对应的过滤地址列表，并将其设置到 filterServerMap 中
                 for (String brokerName : brokerNameSet) {
                     BrokerData brokerData = this.brokerAddrTable.get(brokerName);
                     if (null == brokerData) {
@@ -703,7 +705,7 @@ public class RouteInfoManager {
         if (foundBrokerData && foundQueueData) {
 
             topicRouteData.setTopicQueueMappingByBroker(this.topicQueueMappingInfoTable.get(topic));
-
+            // 不支持从库模式
             if (!namesrvConfig.isSupportActingMaster()) {
                 return topicRouteData;
             }
@@ -718,6 +720,7 @@ public class RouteInfoManager {
 
             boolean needActingMaster = false;
 
+            // 遍历所有的 broker，如果某个 broker 没有主节点(MASTER_ID)且启用了 ActingMaster 功能，则需要进行处理
             for (final BrokerData brokerData : topicRouteData.getBrokerDatas()) {
                 if (brokerData.getBrokerAddrs().size() != 0
                     && !brokerData.getBrokerAddrs().containsKey(MixAll.MASTER_ID)) {
@@ -736,7 +739,7 @@ public class RouteInfoManager {
                     continue;
                 }
 
-                // No master
+                // No master 从 broker 的备节点中选择一个作为主节点，并标记为 MASTER_ID
                 for (final QueueData queueData : topicRouteData.getQueueDatas()) {
                     if (queueData.getBrokerName().equals(brokerData.getBrokerName())) {
                         if (!PermName.isWriteable(queueData.getPerm())) {
