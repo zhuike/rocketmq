@@ -196,19 +196,28 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 
     @Override
     public void start() {
+        // 监听事件线程组
         this.defaultEventExecutorGroup = new DefaultEventExecutorGroup(nettyServerConfig.getServerWorkerThreads(),
             new ThreadFactoryImpl("NettyServerCodecThread_"));
 
         prepareSharableHandlers();
-
+        // 指定主线程池和工作线程池，用于处理客户端连接和网络事件
         serverBootstrap.group(this.eventLoopGroupBoss, this.eventLoopGroupSelector)
+            // 用于创建服务端的channel，一种使用的是Java NIO作为底层网络I/O模型，另一种使用Linux epoll机制
+            // nio使用轮询所有连接是否有数据 epoll使用事件通知方式
             .channel(useEpoll() ? EpollServerSocketChannel.class : NioServerSocketChannel.class)
+            // 设置服务器接受连接的队列大小
             .option(ChannelOption.SO_BACKLOG, 1024)
+            // 开启地址复用，允许多个进程或线程绑定到同一个端口
             .option(ChannelOption.SO_REUSEADDR, true)
+            // 设置子通道的SO_KEEPALIVE选项，表示关闭TCP连接的空闲检测
             .childOption(ChannelOption.SO_KEEPALIVE, false)
+            // 设置子通道的TCP_NODELAY选项，表示禁用Nagle算法，提高网络传输的实用性
             .childOption(ChannelOption.TCP_NODELAY, true)
+            // 设置本地绑定的IP地址和端口
             .localAddress(new InetSocketAddress(this.nettyServerConfig.getBindAddress(),
                 this.nettyServerConfig.getListenPort()))
+            // 设置子通道的处理器
             .childHandler(new ChannelInitializer<SocketChannel>() {
                 @Override
                 public void initChannel(SocketChannel ch) {
@@ -267,34 +276,45 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
      */
     protected ChannelPipeline configChannel(SocketChannel ch) {
         return ch.pipeline()
+                // 添加握手阶段处理器
             .addLast(defaultEventExecutorGroup, HANDSHAKE_HANDLER_NAME, new HandshakeHandler())
+                // 依次加入
             .addLast(defaultEventExecutorGroup,
+                //编码处理器
                 encoder,
+                // 解码处理器
                 new NettyDecoder(),
+                // 分发处理器（负责将请求分发给具体的业务处理器）
                 distributionHandler,
+                // 空闲状态处理器（用于检测连接的空闲状态）
                 new IdleStateHandler(0, 0,
                     nettyServerConfig.getServerChannelMaxIdleTimeSeconds()),
+                // 连接管理处理器
                 connectionManageHandler,
+                // 服务器处理器，用于处理具体业务
                 serverHandler
             );
     }
 
     private void addCustomConfig(ServerBootstrap childHandler) {
+        // 设置发送缓冲区大小
         if (nettyServerConfig.getServerSocketSndBufSize() > 0) {
             log.info("server set SO_SNDBUF to {}", nettyServerConfig.getServerSocketSndBufSize());
             childHandler.childOption(ChannelOption.SO_SNDBUF, nettyServerConfig.getServerSocketSndBufSize());
         }
+        // 设置接收缓冲区大小
         if (nettyServerConfig.getServerSocketRcvBufSize() > 0) {
             log.info("server set SO_RCVBUF to {}", nettyServerConfig.getServerSocketRcvBufSize());
             childHandler.childOption(ChannelOption.SO_RCVBUF, nettyServerConfig.getServerSocketRcvBufSize());
         }
+        // 设置写缓冲区水位标记
         if (nettyServerConfig.getWriteBufferLowWaterMark() > 0 && nettyServerConfig.getWriteBufferHighWaterMark() > 0) {
             log.info("server set netty WRITE_BUFFER_WATER_MARK to {},{}",
                 nettyServerConfig.getWriteBufferLowWaterMark(), nettyServerConfig.getWriteBufferHighWaterMark());
             childHandler.childOption(ChannelOption.WRITE_BUFFER_WATER_MARK, new WriteBufferWaterMark(
                 nettyServerConfig.getWriteBufferLowWaterMark(), nettyServerConfig.getWriteBufferHighWaterMark()));
         }
-
+        // 设置字节缓冲分配器
         if (nettyServerConfig.isServerPooledByteBufAllocatorEnable()) {
             childHandler.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         }
